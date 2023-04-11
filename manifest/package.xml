@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>AutomationsManagerController</members>
+        <members>AutomationsManagerControllerTest</members>
+        <members>AutomationsManagerMetadataService</members>
+        <members>AutomationsManagerMetadataServiceTest</members>
+        <members>AutomationsManagerSnapshotController</members>
+        <members>AutomationsManagerSnapshotControllerTest</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>Automations_Snapshot__c</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
+        <members>SessionId</members>
+        <name>ApexPage</name>
+    </types>
+    <types>
+        <members>automationsManager</members>
+        <name>LightningComponentBundle</name>
+    </types>
+    <types>
+        <members>Automations_Manager</members>
+        <name>CustomTab</name>
+    </types>
+    <types>
+        <members>jszip</members>
+        <name>StaticResource</name>
+    </types>
+    <version>56.0</version>
+</Package>
