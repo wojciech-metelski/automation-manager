@@ -77,7 +77,8 @@ public without sharing class AutomationsManagerMetadataService {
     @AuraEnabled
     public static String checkDeploymentStatus(String deploymentId){
         try {
-            final String REQUEST_URL = '/services/data/v' + API_VERSION + '/metadata/deployRequest/' + deploymentId;
+            final String REQUEST_URL = '/services/data/v' + API_VERSION + 
+                '/metadata/deployRequest/' + deploymentId + '?includeDetails=true';
             HttpRequest request = new HttpRequest();
             request.setEndpoint(BASE_URL + REQUEST_URL);
             request.setMethod('GET');

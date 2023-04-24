@@ -70,7 +70,7 @@ export default class AutomationsManager extends LightningElement {
 
         options.unshift({
             label: 'None',
-            value: null,
+            value: '',
         })
 
         return options;
@@ -333,6 +333,26 @@ export default class AutomationsManager extends LightningElement {
         }
     }
 
+    showTriggerErrors(response){
+        console.log(JSON.stringify(response));
+        const errors = {};
+        for(const detail of response.deployResult.details.componentFailures){
+            console.log(detail.fullName);
+            const trigger = this.triggers.records.find(item => detail.fullName == item.name);
+            errors[trigger.id] = {
+                title: detail.problemType,
+                messages: detail.problem
+            }
+        }
+
+        console.log('ERRORS');
+        console.log(errors);
+
+        this.triggers.errors = {
+            rows: errors
+        }
+    }
+
     showErrors(responses, type){
         const errors = {};
         for(const batch of responses){
@@ -381,7 +401,8 @@ export default class AutomationsManager extends LightningElement {
                 await this.asyncWait(1000);
                 const data = JSON.parse(await checkDeploymentStatus({deploymentId}));
                 if(['Succeeded', 'Canceled', 'Failed', 'SucceededPartial'].includes(data.deployResult.status)){
-                    return data.deployResult.status;
+                    return data;
+                    //return data.deployResult.status;
                 }
             }
         } catch (e) { console.error(e.message || e.body.message || JSON.stringify(e)); }
@@ -407,12 +428,17 @@ export default class AutomationsManager extends LightningElement {
         this.triggers.draftValues = [];
         this.triggers.errors = {};
         this.isLoading = true;
+        let deployStatus;
+
         try{
             const data = await deployData({zip: zipString});
-            const status = await this.pollDeploymentStatus(data.match(/<id>(?<id>\w+)<\/id>/)?.groups?.id);
-            if(['Canceled', 'Failed', 'SucceededPartial'].includes(status)){
-                throw new Error(`Couldn\t Deploy. Status ${status}}`);
+            deployStatus = await this.pollDeploymentStatus(data.match(/<id>(?<id>\w+)<\/id>/)?.groups?.id);
+            //console.log(JSON.stringify(deployStatus));
+
+            if(['Canceled', 'Failed', 'SucceededPartial'].includes(deployStatus.deployResult.status)){
+                throw new Error(`Couldn\'t Deploy. Status ${deployStatus.deployResult.status}`);
             }
+
             const updatedRecords = await getTriggers({
                 name: this.name,
                 objectName: this.objectName
@@ -421,6 +447,7 @@ export default class AutomationsManager extends LightningElement {
             this.triggers.records = this.triggers.records.map(rec => updatedRecords.find(r => r.id === rec.id) || rec);
             this.showToast('Success', 'Trigger Statuses Changed Successfully', 'success');
         }catch(e){
+            this.showTriggerErrors(deployStatus);
             this.showToast('Error', e.message || e.body.message || JSON.stringify(e), 'error');
         }finally{
             this.isLoading = false;
