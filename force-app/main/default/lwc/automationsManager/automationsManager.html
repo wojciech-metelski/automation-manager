@@ -1,5 +1,13 @@
 <!-- sldsValidatorIgnore -->
 <template>
+    <c-automations-manager-save-snapshot-modal 
+        data-snapshot-save
+        onrefreshsnapshots={handleRefreshSnapshots}>
+    </c-automations-manager-save-snapshot-modal>
+    <c-automations-manager-snapshots-modal 
+        data-snapshots-list
+        onrefreshsnapshots={handleRefreshSnapshots}>
+    </c-automations-manager-snapshots-modal>
     <div style="position: relative; height: 100%; display:flex; flex-direction: column; align-items: stretch;">
     <lightning-card variant="narrow" icon-name="utility:search">
         <h1 slot="title">
@@ -8,109 +16,103 @@
                 Manage Activation Status Of Automations In Your Org
             </p>
         </h1>
-        
-        <!-- <div class="slds-m-around_medium">
-            <div style="display:flex; gap: 0.5em;" class="slds-m-vertical_medium">
-                    <lightning-button
-                        onclick={searchAutomations}
-                        label="Search"
-                        variant="brand">
-                    </lightning-button>
-                    <lightning-input
-                        value={name}
-                        onchange={handleNameChange}
-                        style="width: 25vw;"
-                        type="text" 
-                        variant = "label-hidden"
-                        placeholder="Enter Process Name">
-                    </lightning-input>
-                    <lightning-input 
-                        value={objectName}
-                        onchange={handleObjectChange}
-                        style="width: 25vw;"
-                        type="text" 
-                        variant = "label-hidden"
-                        placeholder="Enter Object Name">
-                    </lightning-input>
-            </div>
-        </div> -->
 
         <div slot="actions">
             <div style="display: flex; gap: 0.5em; align-items: center;">
+                <lightning-button
+                    onclick={showSnapshotManagerModal}
+                    label="Manage Snapshots">
+                </lightning-button>
                 <lightning-button 
-                    onclick={saveSnapshot} 
+                    style="margin-right: 1em;"
+                    onclick={showSnapshotSaveModal} 
                     label="Save Snapshot"
                     disabled={isSaveSnapshotButtonDisabled}>
                 </lightning-button>
                 <lightning-combobox
                     data-snapshot
+                    label="Main Snapshot"
                     disabled={isSnapshotListDisabled}
                     style="width: 25vw;"
-                    value={selectedSnapshot}
-                    variant="label-hidden"
+                    value=""
                     placeholder="Select Snapshot"
                     options={snapshotOptions}
-                    dropdown-alignment="right"
+                    dropdown-alignment="auto"
                     onchange={selectSnapshot}>
+                </lightning-combobox>
+                <lightning-combobox
+                    label="Compare Snapshot"
+                    data-compare-snapshot
+                    disabled={isComapareSnapshotDisabled}
+                    style="width: 25vw;"
+                    value=""
+                    placeholder="Compare With"
+                    options={snapshotOptions}
+                    dropdown-alignment="auto"
+                    onchange={selectCompareSnapshot}>
                 </lightning-combobox>
             </div>
         </div>
     </lightning-card>
 
-    <div class="slds-box slds-theme_default slds-m-top_small" style="flex-grow: 1; display:flex; flex-direction: column;">
-        <div style="display:flex; gap: 0.5em;" class="slds-m-bottom_medium">
-                <lightning-button
-                    onclick={searchAutomations}
-                    label="Search"
-                    variant="brand">
-                </lightning-button>
-                <lightning-input
-                    value={name}
-                    onchange={handleNameChange}
-                    style="width: 25vw;"
-                    type="text" 
-                    variant = "label-hidden"
-                    placeholder="Enter Process Name">
-                </lightning-input>
-                <lightning-input 
-                    value={objectName}
-                    onchange={handleObjectChange}
-                    style="width: 25vw;"
-                    type="text" 
-                    variant = "label-hidden"
-                    placeholder="Enter Object Name">
-                </lightning-input>
+    <div data-content class="slds-box slds-theme_default slds-m-top_small" style="flex-grow: 1; display:flex; flex-direction: column;">
+        <div data-search style="display:flex; gap: 0.5em;" class="slds-m-bottom_medium">
+            <lightning-button
+                onclick={searchAutomations}
+                label="Search"
+                variant="brand">
+            </lightning-button>
+            <lightning-input
+                data-name
+                style="width: 25vw;"
+                type="text" 
+                variant="label-hidden"
+                placeholder="Enter Process Name">
+            </lightning-input>
+            <lightning-input
+                data-object-name
+                style="width: 25vw;"
+                type="text" 
+                variant="label-hidden"
+                placeholder="Enter Object Names Seperated By Comma">
+            </lightning-input>
         </div>
 
-        <lightning-tabset>
+        <lightning-tabset style="flex-grow: 1; display:flex;">
             <template for:each={automations} for:item="automation">
                 <lightning-tab key={automation.title} 
                 label={automation.title} 
                 title={automation.title} 
-                style="overflow-y: auto;">
-                    <template lwc:if={automation.records.length}>
-                        <lightning-datatable
-                            data-automation={automation.type}
-                            key-field="id"
-                            data={automation.table}
-                            columns={automation.columns}
-                            hide-checkbox-column="true"
-                            onsave={automation.save}
-                            draft-values={automation.draftValues}
-                            onheaderaction={automation.actions}
-                            onchange={disableSnapshot}
-                            oncancel={handleCancel}
-                            errors={automation.errors}>
-                        </lightning-datatable>
-                    </template>
-                    <template lwc:else>
-                        <div class="slds-illustration slds-illustration_large" aria-hidden="true">
-                            <img src="/img/chatter/OpenRoad.svg" class="slds-illustration__svg" alt=""/>
-                            <div class="slds-text-color_weak">
-                                <h3 class="slds-text-heading_medium">No {automation.title} Found</h3>
+                style="overflow-y: auto; height: var(--tab-content-height);">
+                    <!-- <div style="height: 100%; display:grid; place-items: center;"> -->
+                        <template lwc:if={automation.tableRecords.length}>
+                            <lightning-datatable
+                                style="height: auto;"
+                                data-automation={automation.type}
+                                key-field="id"
+                                data={automation.table}
+                                columns={automation.columns}
+                                hide-checkbox-column="true"
+                                onsave={automation.save}
+                                draft-values={automation.tableDraftValues}
+                                onheaderaction={automation.actions}
+                                onchange={clearSnapshot}
+                                oncancel={handleCancel}
+                                suppress-bottom-bar={isAutomationSaveDisabled}
+                                errors={automation.errors}>
+                            </lightning-datatable>
+                        </template>
+                        <template lwc:else>
+                            <div style="height: 100%; display: grid; place-items: center;">
+                                <div class="slds-illustration slds-illustration_large" style="width: 35%;" aria-hidden="true">
+                                    <img src="/img/chatter/OpenRoad.svg" class="slds-illustration__svg" alt=""/>
+                                    <div class="slds-text-color_weak">
+                                        <h3 class="slds-text-heading_medium">No {automation.title} Found</h3>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </template>
+                        </template>
+                    <!-- </div> -->
                 </lightning-tab>
             </template>
         </lightning-tabset>

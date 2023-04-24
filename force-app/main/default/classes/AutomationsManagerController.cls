@@ -98,11 +98,38 @@ public without sharing class  AutomationsManagerController {
         System.debug(JSON.serialize(compositeRequest));
         return makeRequest(POST, REQUEST_URL, JSON.serialize(compositeRequest));
     }
+
+
+
+    private static List<String> getQueryValues(String values){
+        List<String> queryValues = values.split(',');
+
+        for(Integer i=0; i<queryValues.size(); i++){
+            queryValues[i] = '%' + queryValues[i].trim() + '%';
+        }
+
+        return queryValues;
+    }
+
+    private static Boolean containsValueFromList(String testedString, String values){
+        List<String> splitValues = values.split(',');
+        testedString = testedString.toLowerCase();
+
+        System.debug(splitValues);
+        for(String value : splitValues){
+            if(testedString.contains(value.trim())){
+                return true;
+            }
+        }
+
+        return false;
+    }
         
     @AuraEnabled
     public static List<TriggerWrapper> getTriggers(String name, String objectName){
         final String queryName = '%' + name + '%';
         final String queryObjectName = '%' + objectName + '%';
+
         try {
             List<ApexTrigger> triggers = [
                 SELECT Id, Name, TableEnumOrId, Body, Status
@@ -113,7 +140,10 @@ public without sharing class  AutomationsManagerController {
             List<TriggerWrapper> wrappers = new List<TriggerWrapper>();
             if(!triggers.isEmpty()){
                 for(ApexTrigger trig : triggers){
-                    if(!String.valueOf(trig.TableEnumOrId).toLowerCase().contains(objectName)){
+                    // if(!String.valueOf(trig.TableEnumOrId).toLowerCase().contains(objectName)){
+                    //     continue;
+                    // }
+                    if(!containsValueFromList(trig.TableEnumOrId, objectName)){
                         continue;
                     }
                     TriggerWrapper wrapper = new TriggerWrapper();
@@ -136,6 +166,7 @@ public without sharing class  AutomationsManagerController {
     public static List<FlowWrapper> getFlows(String name, String objectName){
         final String queryName = '%' + name + '%';
         final String queryObjectName = '%' + objectName + '%';
+
         try {
             List<FlowDefinitionView> flows = [
                 SELECT Id, IsActive, DurableId, ActiveVersionId, VersionNumber, 
@@ -144,7 +175,7 @@ public without sharing class  AutomationsManagerController {
                 WHERE ProcessType = 'AutoLaunchedFlow'
                     AND TriggerType IN ('RecordAfterSave', 'RecordBeforeSave')
                     AND Label LIKE :queryName
-                    AND TriggerObjectOrEvent.QualifiedApiName LIKE :queryObjectName
+                    AND TriggerObjectOrEvent.QualifiedApiName LIKE :getQueryValues(objectName)
             ];
 
             List<FlowWrapper> wrappers = new List<FlowWrapper>();
@@ -236,25 +267,6 @@ public without sharing class  AutomationsManagerController {
         }
 
         HttpResponse response = makeCompositeRequest(subrequests);
-        // Map<String, Object> responseMap = 
-        //     (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
-
-        // List<WorkflowRuleWrapper> wrappers = new List<WorkflowRuleWrapper>();
-        // List<Object> subresponses = (List<Object>)responseMap.get('compositeResponse');
-        // System.debug(subresponses);
-        // for(Object subresponse : subresponses){
-        //     Map<String, Object> subresponseMap = (Map<String, Object>)subresponse;
-        //     Map<String, Object> subresponseMap = (Map<String, Object>)subresponse;
-        //     System.debug(subresponse);
-        //     WorkflowRuleWrapper wrapper = new WorkflowRuleWrapper();
-        //     wrapper.id = (String)subresponseMap.get('Id');
-        //     wrapper.metadata = subresponseMap.get('Metadata');
-        //     wrapper.name = (String)subresponseMap.get('ValidationName');
-        //     wrapper.relatedObject = (String)subresponseMap.get('EntityDefinitionId');
-        //     wrappers.add(wrapper);
-        // }
-
-        // System.debug(wrappers);
 
         return response.getBody();
     }
@@ -271,9 +283,12 @@ public without sharing class  AutomationsManagerController {
 
         List<String> ids = new List<String>();
         for(WorkflowResponseItem item : workflows.records){
-            if(item.TableEnumOrId.toLowerCase().contains(objectName)){
-                ids.add(item.Id);
+            if(containsValueFromList(item.TableEnumOrId, objectName)){
+                ids.add(item.id);
             }
+            // if(item.TableEnumOrId.toLowerCase().contains(objectName)){
+            //     ids.add(item.Id);
+            // }
         }
 
         return ids;
@@ -321,9 +336,12 @@ public without sharing class  AutomationsManagerController {
 
         List<String> ids = new List<String>();
         for(ValidationRuleResponseItem validationRule: validationRules.records) {
-            if(validationRule.EntityDefinitionId.toLowerCase().contains(objectName)){
-                ids.add(validationRule.Id);
+            if(containsValueFromList(validationRule.EntityDefinitionId, objectName)){
+                ids.add(validationRule.id);
             }
+            // if(validationRule.EntityDefinitionId.toLowerCase().contains(objectName)){
+            //     ids.add(validationRule.Id);
+            // }
         }
 
         return ids;

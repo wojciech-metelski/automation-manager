@@ -1,0 +1,13 @@
+/* lightning-tabset lightning-tab{
+    overflow-y: auto;
+    max-height: 60vh !important;
+} */
+
+.pointer-events-none{
+    pointer-events: none;
+    
+}
+
+lightning-file-upload span{
+    display: none;
+}

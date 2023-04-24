@@ -1,0 +1,112 @@
+<!-- sldsValidatorIgnore -->
+<template>
+    <template if:true={isShown}>
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-01" 
+        class="slds-modal slds-fade-in-open slds-modal_large">
+        <div class="slds-modal__container">
+            <div class="slds-modal__header">
+                <h1 id="modal-heading-01" class="slds-modal__title slds-hyphenate">Manage Snapshots</h1>
+            </div>
+            <div class="slds-theme_shade" style="min-height: 25vh; position: relative;">
+                <template lwc:if={isLoading}>
+                    <div style="top:0px; bottom:0px; left:0px; right:0px; position: absolute; backdrop-filter: 
+                    blur(8px); z-index: calc(var(--lwc-zIndexOverlay) + 1);">
+                        <div role="status" class="slds-spinner slds-spinner_medium">
+                        <span class="slds-assistive-text">Loading</span>
+                        <div class="slds-spinner__dot-a"></div>
+                        <div class="slds-spinner__dot-b"></div>
+                        </div>
+                    </div>
+                </template>
+                <lightning-tabset variant="vertical">
+                    <lightning-tab value="update" label="Select / Update" onactive={handleTabSelection}>
+                        <div style="overflow-y: auto; max-height: 60vh;">
+                            <lightning-datatable
+                                data-update-table
+                                key-field="id"
+                                onchange={syncDraftValues}
+                                data={snapshotTable}
+                                columns={updateColumns}
+                                max-row-selection="1"
+                                onrowselection={syncRowsToExportCount}
+                                suppress-bottom-bar="true">
+                            </lightning-datatable>
+                        </div>
+                    </lightning-tab>
+                    <lightning-tab value="delete" label="Delete" onactive={handleTabSelection}>
+                        <div style="overflow-y: auto; max-height: 60vh;">
+                        <lightning-datatable
+                            data-delete-table
+                            key-field="id"
+                            onrowselection={syncDeleteRowsCount}
+                            data={snapshotTable}
+                            columns={deleteColumns}
+                            suppress-bottom-bar="true">
+                        </lightning-datatable>
+                        </div>
+                    </lightning-tab>
+                </lightning-tabset>
+            </div>
+            
+            <!-- <template if:false={isLoading}> -->
+            <div class="slds-modal__footer">
+                <a style="display:hidden"
+                    data-export
+                    download="snapshot.json"
+                    href={exportUrl}>
+                </a>
+                <div style="display: flex; justify-content:end; align-items: center;">
+                    <template lwc:if={isDeleteTab}>
+                        <button class="slds-button slds-button_destructive" 
+                            disabled={isDeleteDisabled}
+                            onclick={handleDeleteSnapshots}>
+                            Delete
+                        </button>
+                    </template>
+                    <template lwc:else>
+                        <!-- <span style="margin-right: auto;">
+                            <lightning-file-upload
+                                variant="label-hidden"
+                                name="snapshotUpload"
+                                onuploadfinished={uploadSnapshot}
+                            >
+                            </lightning-file-upload>
+                        </span> -->
+                        <lightning-input 
+                            class="slds-button" 
+                            variant="label-hidden"
+                            placeholder=""
+                            name="snapshotUpload"
+                            onchange={uploadSnapshot}
+                            type="file" accept=".json">
+                        </lightning-input>
+                        <button class="slds-button slds-button_brand" 
+                            style="margin-right: auto;"
+                            disabled={isExportDisabled}
+                            onclick={exportJSON}>
+                            Export
+                        </button>
+                        <button class="slds-button slds-button_brand" 
+                            disabled={isSaveDisabled} 
+                            onclick={clearUpdateTable}>
+                            Clear
+                        </button>
+                        <button class="slds-button slds-button_brand" 
+                            disabled={isSaveDisabled} 
+                            onclick={saveSnapshots}>
+                            Save
+                        </button>
+                    </template>
+                    <button class="slds-button slds-button_neutral" 
+                        disabled={isLoading} 
+                        onclick={closeModal}>Close
+                    </button>
+
+                </div>
+            </div>
+            <!-- </template> -->
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+    </template>
+</template>

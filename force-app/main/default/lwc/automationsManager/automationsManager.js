@@ -25,6 +25,9 @@ import JSZIP from '@salesforce/resourceUrl/jszip';
 export default class AutomationsManager extends LightningElement {
     isLoading = false;
     editingEnabled = true;
+    selectedSnapshot = null;
+    comapareSnapshot = null;
+    showCompareColumn = false;
 
     errors = {};
 
@@ -36,37 +39,55 @@ export default class AutomationsManager extends LightningElement {
         return !this.editingEnabled;
     }
 
-    get isClearSnapshotButtonDisabled(){
-        return !this.template.querySelector('[data-snapshot]')?.value;
+    get isAutomationSaveDisabled(){
+        return this.comapareSnapshot != null;
     }
 
     AUTOMATION_TYPES = ['triggers', 'flows', 'processBuilders', 'workflows', 'validationRules'];
     @track
     automations = [];
 
-    selectedSnapshot;
+    zipper;
+    searchName = ''
+    name = '';
+    searchObjectName = '';
+    objectName = '';
+
+    selectedSnapshot = null;
     @track snapshots = [];
     get snapshotOptions(){
-        return this.snapshots.map((item) => {
-            //console.log(JSON.stringify(item));
+        const filteredSnapshots = this.snapshots.filter(item => item.isShown);
+        const options = filteredSnapshots.map((item) => {
             const formatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'medium'});
             const date = new Date(item.createdDate).getTime();
-            //const name = item.queryName || 'No Value';
-            //const objectName = item.queryObjectName || 'No Value';
+
             return {
-                label: `${item.name}`,
-                description: `${formatter.format(date)}`,
-                value: item.id,
-            };
+                label: item.description,
+                description: formatter.format(date),
+                value: item.id
+            }
         })
+
+        options.unshift({
+            label: 'None',
+            value: null,
+        })
+
+        return options;
+    }
+
+    get isComapareSnapshotDisabled(){
+        return this.selectedSnapshot == null;
+    }
+
+    handleRefreshSnapshots(e){
+        this.snapshots = e.detail;
     }
 
     @track triggers = {
         title: 'Triggers',
-        records: [],
-        draftValues: [],
         get table(){
-            return this.records.map(item => {
+            return this.tableRecords.map(item => {
                 item['triggerUrl'] = '/lightning/setup/ApexTriggers/page?address=%2F' + item.id;
                 return item;
             })
@@ -75,10 +96,8 @@ export default class AutomationsManager extends LightningElement {
 
     @track flows = {
         title: 'Flows',
-        records: [],
-        draftValues: [],
         get table(){
-            return this.records.map(item => {
+            return this.tableRecords.map(item => {
                 item['flowUrl'] = '/builder_platform_interaction/flowBuilder.app?flowId=' + item.activeVersionId;
                 item['urlLabel'] = item.activeVersionId ? item.activeVersionId : 'Inactive';
                 item['urlStyle'] = item.activeVersionId ? '' : 'disabled';
@@ -89,10 +108,8 @@ export default class AutomationsManager extends LightningElement {
 
     @track workflows = {
         title: 'Workflow Rules',
-        records: [],
-        draftValues: [],
         get table(){
-            return this.records.map(item => {
+            return this.tableRecords.map(item => {
                 item['workflowUrl'] = '/' + item.id
                 return item;
             })
@@ -101,10 +118,8 @@ export default class AutomationsManager extends LightningElement {
 
     @track processBuilders = {
         title: 'Processes',
-        records: [],
-        draftValues: [],
         get table(){
-            return this.records.map(item => {
+            return this.tableRecords.map(item => {
                 item['versionLabel'] = item.activeVersionId ? item.activeVersionId : 'Inactive';
                 return item;
             })
@@ -113,41 +128,38 @@ export default class AutomationsManager extends LightningElement {
 
     @track validationRules = {
         title: 'Validation Rules',
-        records: [],
-        draftValues: [],
         get table(){
-            return this.records.map(item => {
+            return this.tableRecords.map(item => {
                 item['validationRuleUrl'] = '/' + item.id
                 return item;
             })
         }
     }
 
-    zipper;
-    name = '';
-    objectName = '';
-
     actions = [
         { label: 'Select All', name: 'selectAll' },
         { label: 'Clear All', name: 'clearAll' },
     ]
 
+    compareColumn = {label: 'Is Active (Compare)', fieldName: 'isActiveCompare', type: 'boolean'}
     
     get triggersColumns() {
         return [
             { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
+            ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Id', fieldName: 'triggerUrl', type: 'url', typeAttributes: {
                 label: {fieldName: 'id'},
                 target: '_blank', }
             },
             { label: 'Name', fieldName: 'name'},
-            { label: 'Related Object', fieldName: 'relatedObject'}
+            { label: 'Related Object', fieldName: 'relatedObject'},
         ];
     }
 
     get flowsColumns() {
         return [
             { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
+            ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Active Version Id', fieldName: 'flowUrl', type: 'url', 
                 typeAttributes: {label: { fieldName: 'urlLabel'}, target: '_blank'},
                 cellAttributes: {class: { fieldName: 'urlStyle'}}
@@ -160,6 +172,7 @@ export default class AutomationsManager extends LightningElement {
     get processBuildersColumns() {
         return [
             { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
+            ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Active Version Id', fieldName: 'versionLabel'},
             { label: 'Name', fieldName: 'name'},
             // { label: 'Related Object', fieldName: 'relatedObject'}
@@ -169,6 +182,7 @@ export default class AutomationsManager extends LightningElement {
     get workflowsColumns() {
         return [
             { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
+            ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Id', fieldName: 'workflowUrl', type: 'url', typeAttributes: {"label": {"fieldName": "id"},"target": "_blank"} },
             { label: 'Name', fieldName: 'name'},
             { label: 'Related Object', fieldName: 'relatedObject'}
@@ -178,6 +192,7 @@ export default class AutomationsManager extends LightningElement {
     get validationRulesColumns() {
         return [
             { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
+            ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Id', fieldName: 'validationRuleUrl', type: 'url', typeAttributes: {"label": {"fieldName": "id"},"target": "_blank"} },
             { label: 'Name', fieldName: 'name'},
             { label: 'Related Object', fieldName: 'relatedObject'}
@@ -190,14 +205,15 @@ export default class AutomationsManager extends LightningElement {
         
         if(actionName === 'selectAll'){
             this.template.querySelector('[data-snapshot]').value = null;
-            for(let item of this[type].records){
+            for(const item of this[type].filteredRecords){
+                console.log('SELCTING');
                 this[type].draftValues.push({id: item.id, isActive: true});
             }
         }
 
         if(actionName === 'clearAll'){
             this.template.querySelector('[data-snapshot]').value = null;
-            for(let item of this[type].records){
+            for(const item of this[type].filteredRecords){
                 this[type].draftValues.push({id: item.id, isActive: false});
             }
         }
@@ -285,9 +301,13 @@ export default class AutomationsManager extends LightningElement {
     async getAutomations(){
         this.isLoading = true;
         const payload = {
-            name: this.name,
-            objectName: this.objectName
+            name: '',
+            objectName: ''
         };
+        // const payload = {
+        //     name: this.name,
+        //     objectName: this.objectName
+        // };
 
         try{
             let [triggers, flows, processBuilders, workflows, validationRules] = await Promise.all([
@@ -298,11 +318,12 @@ export default class AutomationsManager extends LightningElement {
                 this.getValidationRules(payload)
             ]);
 
-            this.triggers.records = triggers;
-            this.flows.records = flows;
-            this.processBuilders.records = processBuilders;
-            this.workflows.records = workflows;
-            this.validationRules.records = validationRules;
+            this.triggers.records = this.triggers.filteredRecords = triggers;
+            this.flows.records = this.flows.filteredRecords = flows;
+            this.processBuilders.records = this.processBuilders.filteredRecords = processBuilders;
+            this.workflows.records = this.workflows.filteredRecords = workflows;
+            this.validationRules.records = this.validationRules.filteredRecords = validationRules;
+            //this.filterAutomations();
         }catch(e){
             console.error(e.message || e.body.message || JSON.stringify(e));
             this.showToast('Error', e.message, 'error');
@@ -392,12 +413,12 @@ export default class AutomationsManager extends LightningElement {
             if(['Canceled', 'Failed', 'SucceededPartial'].includes(status)){
                 throw new Error(`Couldn\t Deploy. Status ${status}}`);
             }
-            const updatedTriggers = await getTriggers({
+            const updatedRecords = await getTriggers({
                 name: this.name,
                 objectName: this.objectName
             });
-            this.triggers.records = updatedTriggers;
-            //this.triggers.records = this.triggers.records.map(rec => updatedTriggers.find(r => r.id === rec.id) || rec);
+            this.triggers.filteredRecords = updatedRecords;
+            this.triggers.records = this.triggers.records.map(rec => updatedRecords.find(r => r.id === rec.id) || rec);
             this.showToast('Success', 'Trigger Statuses Changed Successfully', 'success');
         }catch(e){
             this.showToast('Error', e.message || e.body.message || JSON.stringify(e), 'error');
@@ -424,12 +445,14 @@ export default class AutomationsManager extends LightningElement {
         this.isLoading = true;
         try{
             const responses = await Promise.all(this.chunk(flows).map(chunk => toggleFlows({flows: chunk})));
-            const updatedFlows = await getFlows({
+            const updatedRecords = await getFlows({
                 name: this.name,
                 objectName: this.objectName
             });
+            
+            this.flows.filteredRecords = updatedRecords;
+            this.flows.records = this.flows.records.map(rec => updatedRecords.find(r => r.id === rec.id) || rec);
             this.showErrors(responses, 'flows');
-            this.flows.records = updatedFlows;
             this.showToast('Success', 'Flow Statuses Changed Successfully', 'success');
         }catch(e){
             this.showToast('Error', e.message || e.body.message || JSON.stringify(e), 'error');
@@ -456,7 +479,11 @@ export default class AutomationsManager extends LightningElement {
         this.isLoading = true;
         try{
             const responses = await Promise.all(this.chunk(flows).map(chunk => toggleFlows({flows: chunk})));
-            this.processBuilders.records = await getProcessBuilders({name: this.name, objectName: this.objectName});
+            const updatedRecords = await getProcessBuilders({name: this.name, objectName: this.objectName});
+            this.processBuilders.filteredRecords = updatedRecords;
+            this.processBuilders.records = this.processBuilders.records.map(
+                rec => updatedRecords.find(r => r.id === rec.id) || rec
+            );
             this.showErrors(responses, 'processBuilders');
             this.showToast('Success', 'Process Builder Statuses Changed Successfully', 'success');
         }catch(e){
@@ -485,7 +512,11 @@ export default class AutomationsManager extends LightningElement {
         this.isLoading = true;
         try{
             const responses = await Promise.all(this.chunk(workflows).map(chunk => toggleWorkflows({workflows: chunk})));
-            this.workflows.records = await this.getWorkflows({name: this.name, objectName: this.objectName});
+            const updatedRecords = await this.getWorkflows({name: this.name, objectName: this.objectName});
+            this.workflows.filteredRecords = updatedRecords;
+            this.workflows.records = this.workflows.records.map(
+                rec => updatedRecords.find(r => r.id === rec.id) || rec
+            );
             this.showErrors(responses, 'workflows');
             this.showToast('Success', 'Workflow Statuses Changed Successfully', 'success');
         }catch(e){
@@ -509,14 +540,17 @@ export default class AutomationsManager extends LightningElement {
             })
         }
 
-
         this.validationRules.draftValues = [];
         this.validationRules.errors = {};
         this.isLoading = true;
         try{
             const responses = 
                 await Promise.all(this.chunk(validationRules).map(chunk => toggleValidationRules({validationRules: chunk})));
-            this.validationRules.records = await this.getValidationRules({name: this.name, objectName: this.objectName});
+            const updatedRecords = await this.getValidationRules({name: this.name, objectName: this.objectName});
+            this.validationRules.filteredRecords = updatedRecords;
+            this.validationRules.records = this.validationRules.records.map(
+                rec => updatedRecords.find(r => r.id === rec.id) || rec
+            );
             this.showErrors(responses, 'workflows');
             this.showToast('Success', 'Validation Rule Statuses Changed Successfully', 'success');
         }catch(e){
@@ -526,105 +560,189 @@ export default class AutomationsManager extends LightningElement {
         }
     }
 
-    async saveSnapshot(){
-        const snapshot = {};
-        for(let type of this.AUTOMATION_TYPES){
-            snapshot[type] = JSON.parse(JSON.stringify(this[type].records));
-        }
-
-        this.isLoading = true;
-        try{
-            const snapshots = await createSnapshot({
-                jsonSnapshot: JSON.stringify(snapshot),
-                name: this.name || '',
-                objectName: this.objectName || ''
-            });
-            this.snapshots = snapshots;
-            this.showToast('Success', 'Snapshot saved', 'success');
-        }catch(e){
-            this.showToast('Error', 'Saving Snapshot Failed', 'error');
-        }finally{
-            this.isLoading = false;
-        }
-    }
-
-    disableSnapshot(){
-        this.template.querySelector('[data-snapshot]').value = null;
-    }
-
     selectSnapshot(e){
+        this.template.querySelector('[data-compare-snapshot]').value = null;
+        this.showCompareColumn = false; 
+        this.selectedSnapshot = e.detail.value;
         const snapshot = this.snapshots.find(snap => snap.id == e.detail.value);
-        const snapshotBody = JSON.parse(snapshot.snapshot);
-        console.log(JSON.stringify(snapshot));
+
+        if(!snapshot){
+            for(const type of this.AUTOMATION_TYPES){
+                this[type].compareRecords = [];
+                this[type].draftValues = [];
+                this[type].filteredRecords = this[type].records;
+            }
+            return;
+        }
+
+        const snapshotJSON = JSON.parse(snapshot.snapshot);
 
         this.name = snapshot.queryName || '';
         this.objectName = snapshot.queryObjectName || '';
-        
+        console.log('OBJECT NAME: ' + JSON.stringify(this.objectName));
+
         for(let type of this.AUTOMATION_TYPES){
+            this[type].filteredRecords = [];
             this[type].draftValues = [];
-            for(let snap of snapshotBody[type]){
+
+            for(let snap of snapshotJSON[type]){
                 this[type].draftValues.push({id: snap.id, isActive: snap.isActive});
+                this[type].filteredRecords.push(this[type].records.find(item => item.id == snap.id));
             }
-            this[type].records = snapshotBody[type];
         }
 
-        console.log('After Load');
+    }
+
+    selectCompareSnapshot(e){
+        console.log(JSON.stringify(e.detail.value));
+        this.comapareSnapshot = e.detail.value;
+        const snapshot = this.snapshots.find(snap => snap.id == e.detail.value);
+
+        if(snapshot == null){
+            for(const type of this.AUTOMATION_TYPES){
+                this[type].compareRecords = [];
+            }
+            this.showCompareColumn = false;
+            return;
+        }
+
+        const snapshotJSON = JSON.parse(snapshot.snapshot);
+        for(const type of this.AUTOMATION_TYPES){
+            this[type].compareRecords = snapshotJSON[type];
+        }
+
+        this.showCompareColumn = true;
     }
 
     clearSnapshot(){
         this.selectedSnapshot = null;
+        this.template.querySelector('[data-compare-snapshot]').value = null;
         this.template.querySelector('[data-snapshot]').value = null;
+        this.showCompareColumn = false;
         this.editingEnabled = true;
-
-        for(let type of this.AUTOMATION_TYPES){
-            this[type].draftValues = [];
-        }
-    }
-
-    handleNameChange(e){
-        this.name = e.target.value;
-    }
-
-    handleObjectChange(e){
-        this.objectName = e.target.value;
     }
 
     handleCancel(e){
-        console.log(e.target.dataset.automation);
+        this.selectedSnapshot = null;
         this.template.querySelector('[data-snapshot]').value = null;
         this[e.target.dataset.automation].draftValues = {};
     }
 
     async searchAutomations(){
         this.template.querySelector('[data-snapshot]').value = null;
+        this.template.querySelector('[data-compare-snapshot]').value = null;
+        this.showCompareColumn = false;
+        this.name = this.template.querySelector('[data-name]').value.toLowerCase();
+        this.objectName = this.template.querySelector('[data-object-name]').value.toLowerCase();
+
         for(const type of this.AUTOMATION_TYPES){
-            this[type].draftValues = {};
+            this[type].compareRecords = [];
+            this[type].draftValues = [];
         }
-        await this.getAutomations();
+
+        this.filterAutomations();
     }
 
-    createAutomationTabs(){
-        this.automations = [];
+    filterAutomations(){
+        const objectNames = this.objectName.toLowerCase().split(',').map(item => item.trim());
+        
         for(const type of this.AUTOMATION_TYPES){
-            this[type].actions = (e) => this.handleHeaderAction(e, type);
-            this[type].save = this['save' + type[0].toUpperCase() + type.slice(1)];
-            this[type].columns = this[type + 'Columns'];
-            this.automations.push(this[type]);
+            if(type == 'processBuilders'){
+                this[type].filteredRecords = this[type].records.filter(item => 
+                    item.name.toLowerCase().includes(this.name) 
+                );
+            }else{
+                this[type].filteredRecords = this[type].records.filter(item => 
+                    item.name.toLowerCase().includes(this.name) && 
+                    objectNames.reduce((acc, val) => acc || item.relatedObject.toLowerCase().includes(val), false)
+                );
+            }
         }
+    }
+
+    showSnapshotManagerModal(e){
+        this.template.querySelector('[data-snapshots-list]').showModal();
+    }
+
+    showSnapshotSaveModal(e){
+        const snapshot = {};
+        for(let type of this.AUTOMATION_TYPES){
+            snapshot[type] = this[type].filteredRecords.map(
+                item => {
+                    return {id: item.id, isActive: item.isActive};
+                }
+            );
+        }
+
+        this.template.querySelector('[data-snapshot-save]').showModal(
+            this.name, 
+            this.objectName, 
+            JSON.stringify(snapshot)
+        );
+    }
+
+    // get combinedRecords(){
+    //     if(this.compareRecords.length){
+    //         const recordIds = this.records.map(item => item.id);
+    //         const recordsDifference = this.compareRecords.filter(item => !recordIds.includes(item.id));
+    //         //return this.records.concat(recordsDifference);
+    //         return this.records.concat(recordsDifference).map(item => {delete item.isActive; return item;});
+    //     }
+    //     return this.records;
+    // }
+
+    tableRecords(){
+        const records = JSON.parse(JSON.stringify(this.filteredRecords));
+        for(const record of this.compareRecords){
+            const commonRecord = this.filteredRecords.find(item => item.id == record.id);
+            if(!commonRecord){
+                const rec = JSON.parse(JSON.stringify(this.records.find(item => item.id == record.id)));
+                delete rec.isActive;
+                records.push(rec);
+            }
+        }
+
+        return records;
+    }
+
+    tableDraftValues(){
+        const draftValues = JSON.parse(JSON.stringify(this.draftValues));
+
+        for(const record of this.compareRecords){
+            const commonRecord = this.filteredRecords.find(item => item.id === record.id);
+            if(commonRecord){
+                const draft = draftValues.find(draft => draft.id == commonRecord.id);
+                if(draft){
+                    draft.isActiveCompare = record.isActive;
+                }
+            }else{
+                draftValues.push({id: record.id, isActiveCompare: record.isActive});
+            }
+        }
+
+        return draftValues;
     }
 
     async connectedCallback(){
-
         for(const type of this.AUTOMATION_TYPES){
             this[type].type = type;
+            this[type].records = [];
+            this[type].filteredRecords = [];
+            this[type].compareRecords = [];
+            this[type].draftValues = [];
             this[type].actions = (e) => this.handleHeaderAction(e, type);
             this[type].save = this['save' + type[0].toUpperCase() + type.slice(1)];
-            this[type].filteredRecords = [];
             this[type].errors = {};
 
             const columnGetter = this.constructor.prototype.__lookupGetter__(`${type}Columns`);
+            //const combinedRecordsGetter = this.constructor.prototype.__lookupGetter__(`combinedRecords`);
+            //const combinedDraftValuesGetter =  this.constructor.prototype.__lookupGetter__(`combinedDraftValues`);
             //const columnGetter = Object.getOwnPropertyDescriptor(this.constructor.prototype, `${type}Columns`);
             this[type].__defineGetter__('columns', columnGetter.bind(this));
+            this[type].__defineGetter__('tableRecords', this.tableRecords);
+            this[type].__defineGetter__('tableDraftValues', this.tableDraftValues);
+            //this[type].__defineGetter__('combinedRecords', combinedRecordsGetter);
+            //this[type].__defineGetter__('combinedDraftValues', combinedDraftValuesGetter);
             //Object.defineProperty(this[type].prototype, 'columns', columnGetter);
             this.automations.push(this[type]);
         }
@@ -636,5 +754,18 @@ export default class AutomationsManager extends LightningElement {
         .then(() => {
             this.zipper = () => new JSZip();
         })
+    }
+
+    isRendered = false;
+
+    renderedCallback(){
+        if(!this.isRendered){
+            const tabset = this.template.querySelector('lightning-tabset');
+            if(tabset){
+                const tabContentHeight = tabset.clientHeight - 39;
+                tabset.style.setProperty('--tab-content-height', `${tabContentHeight}px`);
+            }
+        }
+        this.isRendered = true;
     }
 }

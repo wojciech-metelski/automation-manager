@@ -1,3 +1,8 @@
+:host{
+    --tab-bar-height: 39px;
+    --tab-content-height: calc(55vh - var(--tab-bar-height));
+}
+
 *{
     box-sizing: border-box;
 }
@@ -6,30 +11,7 @@
     pointer-events: none;
 }
 
-.slds-docked-form-footer.slds-is-absolute{
-    z-index: 1 !important;
-}
-
-.slds-card__header{
-    background-color: rgb(201, 199, 197) !important;
-}
-
-lightning-tabset{
-    min-height: 1px;
+/* lightning-datatable{
     display: block;
-    flex-grow: 1;
-}
-
-lightning-tabset > .slds-tabs_default{
-    height: 100% !important;
-}
-
-lightning-tab{
-    height: 100%;
-}
-
-lightning-tab lightning-datatable{
-    display: block;
-    max-height: 55vh !important;
-    overflow-y: auto;
-}
+    height: auto !important;
+} */
