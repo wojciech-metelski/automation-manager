@@ -41,6 +41,17 @@
                     onchange={selectSnapshot}>
                 </lightning-combobox>
                 <lightning-combobox
+                    data-compare-snapshot
+                    label="Compare Snapshot"
+                    disabled={isSnapshotListDisabled}
+                    style="width: 25vw;"
+                    value=""
+                    placeholder="Compare With"
+                    options={snapshotOptions}
+                    dropdown-alignment="auto"
+                    onchange={selectCompareSnapshot}>
+                </lightning-combobox>
+                <!-- <lightning-combobox
                     label="Compare Snapshot"
                     data-compare-snapshot
                     disabled={isComapareSnapshotDisabled}
@@ -50,7 +61,7 @@
                     options={snapshotOptions}
                     dropdown-alignment="auto"
                     onchange={selectCompareSnapshot}>
-                </lightning-combobox>
+                </lightning-combobox> -->
             </div>
         </div>
     </lightning-card>

@@ -29,5 +29,9 @@
         <members>jszip</members>
         <name>StaticResource</name>
     </types>
+    <types>
+        <members>Automations_Manager</members>
+        <name>PermissionSet</name>
+    </types>
     <version>56.0</version>
 </Package>

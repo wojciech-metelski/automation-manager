@@ -11,6 +11,12 @@
     pointer-events: none;
 }
 
+/* *:hover{
+    transform: rotateX(15deg) skew(-15deg);
+    transition: transform ease-in-out 0.3s;
+} */
+
+
 /* lightning-datatable{
     display: block;
     height: auto !important;

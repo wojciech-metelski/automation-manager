@@ -106,7 +106,7 @@ export default class AutomationsManagerSnapshotsModal extends LightningElement {
         for(const row of selectedRows){
             ids.push(row.id);
         }
-        
+
         this.isLoading = true;
         try {
             await deleteSnapshots({ids});
@@ -140,7 +140,7 @@ export default class AutomationsManagerSnapshotsModal extends LightningElement {
         this.exportRowsCount = selectedRows.length;
         const snapshot = this.snapshots.find(item => selectedRows[0].id == item.id);
 
-        this.exportUrl = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(snapshot));
+        this.exportUrl = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(snapshot, null, 2));
     }
 
     exportJSON(){
