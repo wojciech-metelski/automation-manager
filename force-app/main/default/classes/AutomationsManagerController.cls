@@ -347,6 +347,101 @@ public without sharing class  AutomationsManagerController {
         return ids;
     }
 
+    public static String generateRandomString(Integer len) {
+        final String chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz';
+        String randStr = '';
+        while (randStr.length() < len) {
+           Integer idx = Math.mod(Math.abs(Crypto.getRandomInteger()), chars.length());
+           randStr += chars.substring(idx, idx+1);
+        }
+        return randStr; 
+    }
+
+    @AuraEnabled
+    public static String getMetadataContainerId(){
+        final String REQUEST_URL = '/services/data/v' + API_VERSION + '/tooling/sobjects/MetadataContainer';
+        final String containerName = 'AutomationsManager_' + generateRandomString(10);
+        Map<String, String> body = new Map<String, String>{'Name' => containerName};
+        HttpResponse response = makeRequest(POST, REQUEST_URL, JSON.serialize(body));
+        Map<String, Object> responseMap = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
+
+        return (String)responseMap.get('id');
+    }
+
+    public class TriggerToggle{
+        @AuraEnabled public String triggerId {get; set;}
+        @AuraEnabled public String body {get; set;}
+        @AuraEnabled public Boolean isActive {get; set;}
+    }
+
+    @AuraEnabled
+    public static string createApexTriggerMembers(List<TriggerToggle> triggers, String metadataContainerId){
+        if(triggers.size() > 25){
+            throw new HandledException('Can\'t handle more than 25 update requests at once');
+        }
+
+        try{
+            final String SUBREQUEST_URL = '/services/data/v' + API_VERSION 
+                + '/tooling/sobjects/ApexTriggerMember/';
+            List<Request> subrequests = new List<Request>();
+            Integer num = 0;
+
+            for(TriggerToggle trig: triggers){
+                final Map<String, Object> METADATA = new Map<String, Object>{
+                    'MetadataContainerId' => metadataContainerId,
+                    'ContentEntityId' => trig.triggerId,
+                    'Body' => trig.body,
+                    'Metadata' => new Map<String, Object>{
+                        'apiVersion' => API_VERSION,
+                        'status' => trig.isActive ? 'Active' : 'Inactive'
+                    }
+                };
+                Request request = new Request();
+                request.method = POST;
+                request.referenceId = trig.triggerId;
+                request.url = SUBREQUEST_URL;
+                request.body = METADATA;
+                subrequests.add(request);
+            }
+
+            HttpResponse response = makeCompositeRequest(subrequests);
+            return response.getBody();
+        }catch (Exception e) {
+            System.debug(e.getStackTraceString());
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static string deployContainer(String metadataContainerId){
+        try {
+            final String REQUEST_URL = '/services/data/v' + API_VERSION + '/tooling/sobjects/ContainerAsyncRequest';
+            Map<String, Object> body = new Map<String, Object>{
+                'MetadataContainerId' => metadataContainerId,
+                'IsCheckOnly' => false
+            };
+            HttpResponse response = makeRequest(POST, REQUEST_URL, JSON.serialize(body));
+            Map<String, Object> responseMap = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
+    
+            return (String)responseMap.get('id');
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static string getContainerRequest(String containerRequestId){
+        try {
+            final String REQUEST_URL = '/services/data/v' + API_VERSION 
+                + '/tooling/sobjects/ContainerAsyncRequest/' + containerRequestId;
+            HttpResponse response = makeRequest(GET, REQUEST_URL);
+    
+            return response.getBody();
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
     public class FlowToggle{
         @AuraEnabled public String flowViewId {get; set;}
         @AuraEnabled public String flowDefinitionId {get; set;}

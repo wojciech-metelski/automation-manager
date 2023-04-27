@@ -13,6 +13,10 @@ import getWorkflowIds from '@salesforce/apex/AutomationsManagerController.getWor
 import getValidationRuleBatch from '@salesforce/apex/AutomationsManagerController.getValidationRuleBatch';
 import getValidationRuleIds from '@salesforce/apex/AutomationsManagerController.getValidationRuleIds';
 
+import getMetadataContainerId from '@salesforce/apex/AutomationsManagerController.getMetadataContainerId';
+import createApexTriggerMembers from '@salesforce/apex/AutomationsManagerController.createApexTriggerMembers';
+import deployContainer from '@salesforce/apex/AutomationsManagerController.deployContainer';
+import getContainerRequest from '@salesforce/apex/AutomationsManagerController.getContainerRequest';
 import toggleFlows from '@salesforce/apex/AutomationsManagerController.toggleFlows';
 import toggleWorkflows from '@salesforce/apex/AutomationsManagerController.toggleWorkflows';
 import toggleValidationRules from '@salesforce/apex/AutomationsManagerController.toggleValidationRules';
@@ -350,7 +354,7 @@ export default class AutomationsManager extends LightningElement {
 
     showTriggerErrors(response){
         const errors = {};
-        for(const detail of response.deployResult.details.componentFailures){
+        for(const detail of response.DeployDetails.componentFailures){
             const trigger = this.triggers.records.find(item => detail.fullName == item.name);
             errors[trigger.id] = {
                 title: detail.problemType,
@@ -382,37 +386,20 @@ export default class AutomationsManager extends LightningElement {
         }
     }
 
-    getTriggerMetadata(apiVersion=56.0, status='Active'){
-        return `<?xml version="1.0" encoding="UTF-8"?>
-            <ApexTrigger xmlns="http://soap.sforce.com/2006/04/metadata">
-                <apiVersion>${apiVersion}</apiVersion>
-                <status>${status}</status>
-            </ApexTrigger>`;
-    }
-
-    getTriggerPackageXML(name, apiVersion){
-        return `<?xml version="1.0" encoding="UTF-8"?>
-            <Package xmlns="http://soap.sforce.com/2006/04/metadata">
-                <types>
-                <members>*</members>
-                <name>${name}</name>
-                </types>
-                <version>${apiVersion}</version>
-            </Package>`;
-    }
-
     asyncWait(ms){
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async pollDeploymentStatus(deploymentId){
+    async pollDeploymentStatus(containerRequestId){
         try {
             while(true){
                 await this.asyncWait(1000);
-                const data = JSON.parse(await checkDeploymentStatus({deploymentId}));
-                if(['Succeeded', 'Canceled', 'Failed', 'SucceededPartial'].includes(data.deployResult.status)){
+                const data = JSON.parse(await getContainerRequest({containerRequestId: containerRequestId}));
+                const status = data.State;
+                console.log(JSON.stringify(status));
+
+                if(['Completed', 'Error', 'Failed', 'Aborted'].includes(status)){
                     return data;
-                    //return data.deployResult.status;
                 }
             }
         } catch (e) { console.error(e.message || e.body.message || JSON.stringify(e)); }
@@ -420,32 +407,35 @@ export default class AutomationsManager extends LightningElement {
 
     async saveTriggers(e){
         const draftValues = e.detail.draftValues;
-        const zip = this.zipper();
-        const API_VERSION = 56.0;
+        const triggers = [];
 
-        const zipTriggers = zip.folder('triggers');
         for(const draft of draftValues){
-            const trig = this.triggers.records.find((trig) => trig.id === draft.id);
-            const status = draft.isActive ? 'Active' : 'Inactive';
-            zipTriggers.file(trig.name + '.trigger-meta.xml', this.getTriggerMetadata(API_VERSION, status));
-            zipTriggers.file(trig.name + '.trigger', trig.body);
+            const trigger = this.triggers.records.find((trigger) => trigger.id === draft.id);
+            triggers.push({
+                triggerId: trigger.id,
+                body: trigger.body,
+                isActive: draft.isActive,
+            });
         }
-
-        const MEMBER = 'ApexTrigger';
-        zip.file('package.xml', this.getTriggerPackageXML(MEMBER, API_VERSION));
-        const zipString = await zip.generateAsync({type: "base64"});
 
         this.triggers.draftValues = [];
         this.triggers.errors = {};
         this.isLoading = true;
-        let deployStatus;
+        let containerRequest;
 
         try{
-            const data = await deployData({zip: zipString});
-            deployStatus = await this.pollDeploymentStatus(data.match(/<id>(?<id>\w+)<\/id>/)?.groups?.id);
+            const metadataContainerId = await getMetadataContainerId();
+            await Promise.all(
+                this.chunk(triggers).map(chunk => createApexTriggerMembers({triggers: chunk, metadataContainerId}))
+            );
+            const containerRequestId = await deployContainer({metadataContainerId});
 
-            if(['Canceled', 'Failed', 'SucceededPartial'].includes(deployStatus.deployResult.status)){
-                throw new Error(`Couldn\'t Deploy. Status ${deployStatus.deployResult.status}`);
+            containerRequest = await this.pollDeploymentStatus(containerRequestId);
+            const status = containerRequest.State;
+
+            if(['Error', 'Failed', 'Aborted'].includes(status)){
+                this.showTriggerErrors(containerRequest);
+                throw new Error(`Couldn\'t Deploy. Status ${status}`);
             }
 
             const updatedRecords = await getTriggers({
@@ -456,7 +446,6 @@ export default class AutomationsManager extends LightningElement {
             this.triggers.records = this.triggers.records.map(rec => updatedRecords.find(r => r.id === rec.id) || rec);
             this.showToast('Success', 'Trigger Statuses Changed Successfully', 'success');
         }catch(e){
-            this.showTriggerErrors(deployStatus);
             this.showToast('Error', e.message || e.body.message || JSON.stringify(e), 'error');
         }finally{
             this.isLoading = false;
