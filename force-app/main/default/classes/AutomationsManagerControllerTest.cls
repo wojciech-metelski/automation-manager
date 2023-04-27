@@ -46,6 +46,14 @@ global class AutomationsManagerControllerTest {
         return (url.contains('/tooling/query') && url.contains('ValidationRule'));
     }
 
+    static Boolean isMetadataContainerQuery(String url){
+        return (url.contains('/tooling/sobjects') && url.contains('MetadataContainer'));
+    }
+
+    static Boolean isdeployContainerRequest(String url){
+        return (url.contains('/tooling/sobjects') && url.contains('ContainerAsyncRequest'));
+    }
+
     global class ToolingCalloutMock implements HttpCalloutMock{
         Integer statusCode;
 
@@ -63,6 +71,8 @@ global class AutomationsManagerControllerTest {
                 res.setBody(getWorkflowIds());
             }else if(isValidationRuleQuery(url)){
                 res.setBody(getValidationRuleIds());
+            }else if(isMetadataContainerQuery(url) || isdeployContainerRequest(url)){
+                res.setBody(JSON.serialize(new Map<String, String>{'id' => TEST_VALUE}));
             }else{
                 res.setBody('');
             }
@@ -145,6 +155,59 @@ global class AutomationsManagerControllerTest {
         }
 
         return toggles;
+    }
+
+    @IsTest
+    public static void shouldGetMetadataContainer(){
+        Test.setMock(HttpCalloutMock.class, new ToolingCalloutMock(200));
+        Test.startTest();
+            AutomationsManagerController.getMetadataContainerId();  
+        Test.stopTest();
+    }
+
+    public static List<AutomationsManagerController.TriggerToggle> getTriggerToggles(Integer count){
+        List<AutomationsManagerController.TriggerToggle> toggles = 
+            new List<AutomationsManagerController.TriggerToggle>();
+
+        for(Integer i=0; i<count; i++){
+            AutomationsManagerController.TriggerToggle toggle = 
+                new AutomationsManagerController.TriggerToggle();
+            toggle.triggerId = TEST_VALUE + i;
+            toggle.body = TEST_VALUE + 1;
+            toggle.isActive = false;
+            toggles.add(toggle);
+        }
+
+        return toggles;
+    }
+
+    @IsTest
+    public static void shouldcreateApexTriggerMembers(){
+        Test.setMock(HttpCalloutMock.class, new ToolingCalloutMock(200));
+        Test.startTest();
+            AutomationsManagerController.createApexTriggerMembers(getTriggerToggles(COUNT), TEST_VALUE);
+            try{
+                AutomationsManagerController.createApexTriggerMembers(getTriggerToggles(ERROR_COUNT), TEST_VALUE);
+            }catch(Exception e){
+                System.debug(e.getMessage());
+            }   
+        Test.stopTest();
+    }
+
+    @IsTest
+    public static void shouldDeployContainer(){
+        Test.setMock(HttpCalloutMock.class, new ToolingCalloutMock(200));
+        Test.startTest();
+            AutomationsManagerController.deployContainer(TEST_VALUE); 
+        Test.stopTest();
+    }
+
+    @IsTest
+    public static void shouldGetContainer(){
+        Test.setMock(HttpCalloutMock.class, new ToolingCalloutMock(200));
+        Test.startTest();
+            AutomationsManagerController.getContainerRequest(TEST_VALUE);
+        Test.stopTest();
     }
 
     @IsTest
