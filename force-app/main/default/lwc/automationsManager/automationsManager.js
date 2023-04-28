@@ -135,10 +135,16 @@ export default class AutomationsManager extends LightningElement {
         }
     }
 
-    actions = [
-        { label: 'Select All', name: 'selectAll' },
-        { label: 'Clear All', name: 'clearAll' },
-    ]
+    get actions(){
+        const acc = 
+            this.editingEnabled ?
+            [
+                { label: 'Select All', name: 'selectAll' },
+                { label: 'Clear All', name: 'clearAll' },
+            ] :
+            []; 
+        return acc;
+    } 
 
     get compareColumn(){
         const snapshot = this.snapshots.find(snap => snap.id == this.comapareSnapshot);
@@ -639,10 +645,13 @@ export default class AutomationsManager extends LightningElement {
             for(const type of this.AUTOMATION_TYPES){
                 this[type].compareRecords = [];
             }
+
+            this.editingEnabled = true;
             this.showCompareColumn = false;
             return;
         }
 
+        this.editingEnabled = false;
         const snapshotJSON = JSON.parse(snapshot.snapshot);
         for(const type of this.AUTOMATION_TYPES){
             const recordIds = this[type].records.map(record => record.id);
