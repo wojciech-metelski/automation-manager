@@ -139,10 +139,16 @@ export default class AutomationsManager extends LightningElement {
         }
     }
 
-    actions = [
-        { label: 'Select All', name: 'selectAll' },
-        { label: 'Clear All', name: 'clearAll' },
-    ]
+    get actions(){
+        const acc = 
+        this.editingEnabled ? 
+        [
+            { label: 'Select All', name: 'selectAll' },
+            { label: 'Clear All', name: 'clearAll' },
+        ] :
+        [];
+        return acc;
+    } 
 
     get compareColumn(){
         const snapshot = this.snapshots.find(snap => snap.id == this.comapareSnapshot);
@@ -221,21 +227,23 @@ export default class AutomationsManager extends LightningElement {
 
     handleHeaderAction(e, type){
         const actionName = e.detail.action.name;
-        this[type].draftValues = [];
+        const draftValues = [];
         
         if(actionName === 'selectAll'){
-            this.template.querySelector('[data-snapshot]').value = null;
+            this.template.querySelector('[data-snapshot]').value = '';
             for(const item of this[type].filteredRecords){
-                this[type].draftValues.push({id: item.id, isActive: true});
+                draftValues.push({id: item.id, isActive: true});
             }
         }
 
         if(actionName === 'clearAll'){
-            this.template.querySelector('[data-snapshot]').value = null;
+            this.template.querySelector('[data-snapshot]').value = '';
             for(const item of this[type].filteredRecords){
-                this[type].draftValues.push({id: item.id, isActive: false});
+                draftValues.push({id: item.id, isActive: false});
             }
         }
+
+        this[type].draftValues = draftValues;
     }
 
     showToast(title, message, variant='info') {
@@ -653,14 +661,14 @@ export default class AutomationsManager extends LightningElement {
     }
 
     handleCancel(e){
-        this.selectedSnapshot = null;
-        this.template.querySelector('[data-snapshot]').value = null;
-        this[e.target.dataset.automation].draftValues = {};
+        this.selectedSnapshot = '';
+        this.template.querySelector('[data-snapshot]').value = '';
+        this[e.target.dataset.automation].draftValues = [];
     }
 
     async searchAutomations(){
-        this.template.querySelector('[data-snapshot]').value = null;
-        this.template.querySelector('[data-compare-snapshot]').value = null;
+        this.template.querySelector('[data-snapshot]').value = '';
+        this.template.querySelector('[data-compare-snapshot]').value = '';
         this.showCompareColumn = false;
         this.name = this.template.querySelector('[data-name]').value.toLowerCase();
         this.objectName = this.template.querySelector('[data-object-name]').value.toLowerCase();
