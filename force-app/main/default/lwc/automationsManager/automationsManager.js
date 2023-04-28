@@ -226,14 +226,14 @@ export default class AutomationsManager extends LightningElement {
         this[type].draftValues = [];
         
         if(actionName === 'selectAll'){
-            this.template.querySelector('[data-snapshot]').value = null;
+            this.template.querySelector('[data-snapshot]').value = '';
             for(const item of this[type].filteredRecords){
                 this[type].draftValues.push({id: item.id, isActive: true});
             }
         }
 
         if(actionName === 'clearAll'){
-            this.template.querySelector('[data-snapshot]').value = null;
+            this.template.querySelector('[data-snapshot]').value = '';
             for(const item of this[type].filteredRecords){
                 this[type].draftValues.push({id: item.id, isActive: false});
             }
@@ -664,7 +664,7 @@ export default class AutomationsManager extends LightningElement {
 
     clearSnapshot(){
         this.selectedSnapshot = null;
-        this.template.querySelector('[data-compare-snapshot]').value = null;
+        this.template.querySelector('[data-compare-snapshot]').value = '';
         this.template.querySelector('[data-snapshot]').value = null;
         this.showCompareColumn = false;
         this.editingEnabled = true;
@@ -672,13 +672,13 @@ export default class AutomationsManager extends LightningElement {
 
     handleCancel(e){
         this.selectedSnapshot = null;
-        this.template.querySelector('[data-snapshot]').value = null;
-        this[e.target.dataset.automation].draftValues = {};
+        this.template.querySelector('[data-snapshot]').value = '';
+        this[e.target.dataset.automation].draftValues = [];
     }
 
     async searchAutomations(){
-        this.template.querySelector('[data-snapshot]').value = null;
-        this.template.querySelector('[data-compare-snapshot]').value = null;
+        this.template.querySelector('[data-snapshot]').value = '';
+        this.template.querySelector('[data-compare-snapshot]').value = '';
         this.showCompareColumn = false;
         this.name = this.template.querySelector('[data-name]').value.toLowerCase();
         this.objectName = this.template.querySelector('[data-object-name]').value.toLowerCase();
