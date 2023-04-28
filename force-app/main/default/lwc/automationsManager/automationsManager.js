@@ -629,9 +629,11 @@ export default class AutomationsManager extends LightningElement {
                 this[type].compareRecords = [];
             }
             this.showCompareColumn = false;
+            this.editingEnabled = true;
             return;
         }
 
+        this.editingEnabled = false;
         const snapshotJSON = JSON.parse(snapshot.snapshot);
         for(const type of this.AUTOMATION_TYPES){
             const recordIds = this[type].records.map(record => record.id);
