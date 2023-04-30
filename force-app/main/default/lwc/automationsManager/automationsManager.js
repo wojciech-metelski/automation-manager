@@ -196,7 +196,7 @@ export default class AutomationsManager extends LightningElement {
             ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Active Version Id', fieldName: 'versionLabel'},
             { label: 'Name', fieldName: 'name'},
-            // { label: 'Related Object', fieldName: 'relatedObject'}
+            { label: 'Related Object', fieldName: 'relatedObject'}
         ];
     }
 
@@ -690,16 +690,16 @@ export default class AutomationsManager extends LightningElement {
         const objectNames = this.objectName.toLowerCase().split(',').map(item => item.trim());
         
         for(const type of this.AUTOMATION_TYPES){
-            if(type == 'processBuilders'){
-                this[type].filteredRecords = this[type].records.filter(item => 
-                    item.name.toLowerCase().includes(this.name) 
-                );
-            }else{
+            // if(type == 'processBuilders'){
+            //     this[type].filteredRecords = this[type].records.filter(item => 
+            //         item.name.toLowerCase().includes(this.name) 
+            //     );
+            // }else{
                 this[type].filteredRecords = this[type].records.filter(item => 
                     item.name.toLowerCase().includes(this.name) && 
                     objectNames.reduce((acc, val) => acc || item.relatedObject.toLowerCase().includes(val), false)
                 );
-            }
+            //}
         }
     }
 

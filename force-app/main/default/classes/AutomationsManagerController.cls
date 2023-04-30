@@ -206,16 +206,35 @@ public without sharing class  AutomationsManagerController {
 
         try {
             List<FlowDefinitionView> flows = [
-                SELECT Id, DurableId, IsActive, ActiveVersionId, 
-                    LatestVersionId, VersionNumber, Label, TriggerObjectOrEvent.QualifiedApiName
-                FROM FlowDefinitionView
+                SELECT Id, DurableId, IsActive, ActiveVersionId, LatestVersionId, VersionNumber, Label,
+                (
+                    SELECT Id, Status,
+                    (
+                        SELECT Id, ObjectType 
+                        FROM Variables
+                        WHERE ApiName = 'myVariable_old'
+                        LIMIT 1
+                    ) 
+                    FROM Versions
+                    ORDER BY VersionNumber DESC 
+                    LIMIT 1
+                ) 
+                FROM FlowDefinitionView 
                 WHERE ProcessType = 'Workflow'
-                    AND Label LIKE :queryName
-                    // AND TriggerObjectOrEventLabel LIKE :queryObjectName
+                AND Label LIKE :queryName
             ];
 
             List<FlowWrapper> wrappers = new List<FlowWrapper>();
             for(FlowDefinitionView flow : flows){
+                final String status = flow.Versions[0].Status;
+                final String processObjectName = flow.Versions[0]?.Variables[0]?.ObjectType;
+                if(processObjectName == null){
+                    continue;
+                }
+                if(!containsValueFromList(status, objectName) 
+                    || containsValueFromList(processObjectName, 'Draft,InvalidDraft')){
+                    continue;
+                }
                 FlowWrapper wrapper = new FlowWrapper();
                 wrapper.isActive = flow.IsActive;
                 wrapper.id = flow.Id;
@@ -223,8 +242,7 @@ public without sharing class  AutomationsManagerController {
                 wrapper.activeVersionId = flow.ActiveVersionId;
                 wrapper.name = flow.Label;
                 wrapper.latestVersion = flow.VersionNumber;
-                wrapper.relatedObject = 
-                    String.isBlank(flow.TriggerObjectOrEvent.QualifiedApiName) ? '' : flow.TriggerObjectOrEvent.QualifiedApiName;
+                wrapper.relatedObject = processObjectName;
                 wrappers.add(wrapper);
             }
 
