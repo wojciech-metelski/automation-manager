@@ -34,7 +34,7 @@
                     label="Main Snapshot"
                     disabled={isSnapshotListDisabled}
                     style="width: 25vw;"
-                    value=""
+                    value={selectedSnapshot}
                     placeholder="Select Snapshot"
                     options={snapshotOptions}
                     dropdown-alignment="auto"
@@ -45,7 +45,7 @@
                     label="Compare Snapshot"
                     disabled={isSnapshotListDisabled}
                     style="width: 25vw;"
-                    value=""
+                    value={compareSnapshot}
                     placeholder="Compare With"
                     options={snapshotOptions}
                     dropdown-alignment="auto"
@@ -106,6 +106,7 @@
                                 hide-checkbox-column="true"
                                 onsave={automation.save}
                                 draft-values={automation.tableDraftValues}
+                                oncellchange={handleRowChange}
                                 onheaderaction={automation.actions}
                                 oncancel={handleCancel}
                                 suppress-bottom-bar={isAutomationSaveDisabled}

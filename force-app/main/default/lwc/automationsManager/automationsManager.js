@@ -157,13 +157,16 @@ export default class AutomationsManager extends LightningElement {
     get mainColumn(){
         const snapshot = this.snapshots.find(snap => snap.id == this.selectedSnapshot);
         const label = `Is Active ${snapshot ? '(' + snapshot.description + ')' : ''}`;
-        return { label: label, fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions}
+        return { label: label, fieldName: 'isActive', type: 'boolean', 
+            //editable : true,
+            editable: {'fieldName' : 'isEditable'}, 
+            actions: this.actions
+        }
     }
     
     get triggersColumns() {
         return [
             this.mainColumn,
-            // { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
             ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Id', fieldName: 'triggerUrl', type: 'url', typeAttributes: {
                 label: {fieldName: 'id'},
@@ -177,7 +180,6 @@ export default class AutomationsManager extends LightningElement {
     get flowsColumns() {
         return [
             this.mainColumn,
-            // { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
             ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Active Version Id', fieldName: 'flowUrl', type: 'url', 
                 typeAttributes: {label: { fieldName: 'urlLabel'}, target: '_blank'},
@@ -191,7 +193,6 @@ export default class AutomationsManager extends LightningElement {
     get processBuildersColumns() {
         return [
             this.mainColumn,
-            // { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
             ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Active Version Id', fieldName: 'versionLabel'},
             { label: 'Name', fieldName: 'name'},
@@ -202,7 +203,6 @@ export default class AutomationsManager extends LightningElement {
     get workflowsColumns() {
         return [
             this.mainColumn,
-            // { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
             ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Id', fieldName: 'workflowUrl', type: 'url', typeAttributes: {"label": {"fieldName": "id"},"target": "_blank"} },
             { label: 'Name', fieldName: 'name'},
@@ -213,7 +213,6 @@ export default class AutomationsManager extends LightningElement {
     get validationRulesColumns() {
         return [
             this.mainColumn,
-            // { label: 'Is Active', fieldName: 'isActive', type: 'boolean', editable: this.editingEnabled, actions: this.actions},
             ...(this.showCompareColumn ? [this.compareColumn] : []),
             { label: 'Id', fieldName: 'validationRuleUrl', type: 'url', typeAttributes: {"label": {"fieldName": "id"},"target": "_blank"} },
             { label: 'Name', fieldName: 'name'},
@@ -237,6 +236,19 @@ export default class AutomationsManager extends LightningElement {
             for(const item of this[type].filteredRecords){
                 this[type].draftValues.push({id: item.id, isActive: false});
             }
+        }
+    }
+
+    handleRowChange(e){
+        console.log(JSON.stringify(e.detail));
+        this.selectedSnapshot = '';
+        const draftValue = e.detail.draftValues[0];
+        const automationType = e.target.dataset.automation;
+        const currentDraft = this[automationType].draftValues.find(item => item.id == draftValue.id);
+        if(currentDraft){
+            currentDraft.isActive = draftValue.isActive;
+        }else{
+            this[automationType].draftValues.push(draftValue);
         }
     }
 
@@ -325,10 +337,6 @@ export default class AutomationsManager extends LightningElement {
             name: '',
             objectName: ''
         };
-        // const payload = {
-        //     name: this.name,
-        //     objectName: this.objectName
-        // };
 
         try{
             let [triggers, flows, processBuilders, workflows, validationRules] = await Promise.all([
@@ -425,7 +433,7 @@ export default class AutomationsManager extends LightningElement {
     }
 
     async saveTriggers(e){
-        const draftValues = e.detail.draftValues;
+        const draftValues = this.triggers.draftValues;
         const zip = this.zipper();
         const API_VERSION = 56.0;
 
@@ -470,7 +478,7 @@ export default class AutomationsManager extends LightningElement {
     }
 
     async saveFlows(e){
-        const draftValues = e.detail.draftValues;
+        const draftValues = this.flows.draftValues;
         const flows = [];
 
         for(const draft of draftValues){
@@ -504,7 +512,7 @@ export default class AutomationsManager extends LightningElement {
     }
 
     async saveProcessBuilders(e){
-        const draftValues = e.detail.draftValues;
+        const draftValues = this.processBuilders.draftValues;
         const flows = [];
 
         for(let draft of draftValues){
@@ -536,7 +544,7 @@ export default class AutomationsManager extends LightningElement {
     }
 
     async saveWorkflows(e){
-        const draftValues = e.detail.draftValues;
+        const draftValues = this.workflows.draftValues;
         const workflows = [];
 
         for(const draft of draftValues){
@@ -569,7 +577,7 @@ export default class AutomationsManager extends LightningElement {
     }
 
     async saveValidationRules(e){
-        const draftValues = e.detail.draftValues;
+        const draftValues = this.validationRules.draftValues;
         const validationRules = [];
 
         for(const draft of draftValues){
@@ -603,14 +611,11 @@ export default class AutomationsManager extends LightningElement {
     }
 
     selectSnapshot(e){
-        //this.template.querySelector('[data-compare-snapshot]').value = null;
-        //this.showCompareColumn = false; 
         this.selectedSnapshot = e.detail.value;
         const snapshot = this.snapshots.find(snap => snap.id == e.detail.value);
 
         if(!snapshot){
             for(const type of this.AUTOMATION_TYPES){
-                //this[type].compareRecords = [];
                 this[type].draftValues = [];
                 this[type].filteredRecords = this[type].records;
             }
@@ -646,33 +651,23 @@ export default class AutomationsManager extends LightningElement {
                 this[type].compareRecords = [];
             }
 
-            this.editingEnabled = true;
+            //this.editingEnabled = true;
             this.showCompareColumn = false;
             return;
         }
 
-        this.editingEnabled = false;
+        //this.editingEnabled = false;
         const snapshotJSON = JSON.parse(snapshot.snapshot);
         for(const type of this.AUTOMATION_TYPES){
             const recordIds = this[type].records.map(record => record.id);
-            this[type].compareRecords = snapshotJSON[type].filter(item => recordIds.includes(item.id));
-            //this[type].compareRecords = snapshotJSON[type];
+            this[type].compareRecords = snapshotJSON[type].filter(item => recordIds.includes(item.id))
         }
 
         this.showCompareColumn = true;
     }
 
-    clearSnapshot(){
-        this.selectedSnapshot = null;
-        this.template.querySelector('[data-compare-snapshot]').value = '';
-        this.template.querySelector('[data-snapshot]').value = null;
-        this.showCompareColumn = false;
-        this.editingEnabled = true;
-    }
-
     handleCancel(e){
         this.selectedSnapshot = null;
-        this.template.querySelector('[data-snapshot]').value = '';
         this[e.target.dataset.automation].draftValues = [];
     }
 
@@ -730,12 +725,14 @@ export default class AutomationsManager extends LightningElement {
     }
 
     tableRecords(){
-        const records = JSON.parse(JSON.stringify(this.filteredRecords));
+        const records = JSON.parse(JSON.stringify(this.filteredRecords))
+            .map(rec => {rec.isEditable = true; return rec;});
             
         for(const record of this.compareRecords){
             const commonRecord = this.filteredRecords.find(item => item.id == record.id);
             if(!commonRecord){
                 const rec = JSON.parse(JSON.stringify(this.records.find(item => item.id == record.id)));
+                rec.isEditable = false;
                 delete rec.isActive;
                 records.push(rec);
             }
@@ -748,14 +745,11 @@ export default class AutomationsManager extends LightningElement {
         const draftValues = JSON.parse(JSON.stringify(this.draftValues));
 
         for(const record of this.compareRecords){
-            //const commonRecord = this.filteredRecords.find(item => item.id == record.id);
-            //if(commonRecord){
-                const draft = draftValues.find(draft => draft.id == record.id);
-                if(draft){
-                    draft.isActiveCompare = record.isActive;
-                    continue;
-                }
-            //}
+            const draft = draftValues.find(draft => draft.id == record.id);
+            if(draft){
+                draft.isActiveCompare = record.isActive;
+                continue;
+            }
             draftValues.push({id: record.id, isActiveCompare: record.isActive});
         }
 
@@ -774,14 +768,10 @@ export default class AutomationsManager extends LightningElement {
             this[type].errors = {};
 
             const columnGetter = this.constructor.prototype.__lookupGetter__(`${type}Columns`);
-            //const combinedRecordsGetter = this.constructor.prototype.__lookupGetter__(`combinedRecords`);
-            //const combinedDraftValuesGetter =  this.constructor.prototype.__lookupGetter__(`combinedDraftValues`);
             //const columnGetter = Object.getOwnPropertyDescriptor(this.constructor.prototype, `${type}Columns`);
             this[type].__defineGetter__('columns', columnGetter.bind(this));
             this[type].__defineGetter__('tableRecords', this.tableRecords);
             this[type].__defineGetter__('tableDraftValues', this.tableDraftValues);
-            //this[type].__defineGetter__('combinedRecords', combinedRecordsGetter);
-            //this[type].__defineGetter__('combinedDraftValues', combinedDraftValuesGetter);
             //Object.defineProperty(this[type].prototype, 'columns', columnGetter);
             this.automations.push(this[type]);
         }
