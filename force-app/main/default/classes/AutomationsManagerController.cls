@@ -115,7 +115,6 @@ public without sharing class  AutomationsManagerController {
         List<String> splitValues = values.split(',');
         testedString = testedString.toLowerCase();
 
-        System.debug(splitValues);
         for(String value : splitValues){
             if(testedString.contains(value.trim())){
                 return true;
@@ -170,7 +169,8 @@ public without sharing class  AutomationsManagerController {
         try {
             List<FlowDefinitionView> flows = [
                 SELECT Id, IsActive, DurableId, ActiveVersionId, VersionNumber, 
-                    LatestVersionId, Label, TriggerObjectOrEvent.QualifiedApiName
+                    LatestVersionId, Label, TriggerObjectOrEvent.QualifiedApiName,
+                    (SELECT Status, VersionNumber FROM Versions)
                 FROM FlowDefinitionView
                 WHERE ProcessType = 'AutoLaunchedFlow'
                     AND TriggerType IN ('RecordAfterSave', 'RecordBeforeSave')
@@ -180,13 +180,29 @@ public without sharing class  AutomationsManagerController {
 
             List<FlowWrapper> wrappers = new List<FlowWrapper>();
             for(FlowDefinitionView flow : flows){
+                flow.Versions.sort();
+                Integer latestVersion;
+                for(Integer i=0; i<flow.Versions.size(); i++){
+                    String status = flow.Versions[i].Status;
+                    System.debug(status);
+                    if(status == 'Active' || status == 'Obsolete'){
+                        latestVersion = flow.Versions.size() - i;
+                        break;
+                    }
+                }
+
+                if(latestVersion == null){
+                    continue;
+                }
+
                 FlowWrapper wrapper = new FlowWrapper();
                 wrapper.isActive = flow.IsActive;
                 wrapper.id = flow.Id;
                 wrapper.flowDefinitionId = flow.DurableId;
                 wrapper.activeVersionId = flow.ActiveVersionId;
                 wrapper.latestVersionId = flow.LatestVersionId;
-                wrapper.latestVersion = flow.VersionNumber;
+                wrapper.latestVersion = latestVersion;
+                //wrapper.latestVersion = flow.VersionNumber;
                 wrapper.name = flow.Label;
                 wrapper.relatedObject = flow.TriggerObjectOrEvent.QualifiedApiName;
                 wrappers.add(wrapper);
@@ -208,16 +224,13 @@ public without sharing class  AutomationsManagerController {
             List<FlowDefinitionView> flows = [
                 SELECT Id, DurableId, IsActive, ActiveVersionId, LatestVersionId, VersionNumber, Label,
                 (
-                    SELECT Id, Status,
+                    SELECT Status, VersionNumber,
                     (
                         SELECT Id, ObjectType 
                         FROM Variables
                         WHERE ApiName = 'myVariable_old'
-                        LIMIT 1
                     ) 
-                    FROM Versions
-                    ORDER BY VersionNumber DESC 
-                    LIMIT 1
+                    FROM Versions 
                 ) 
                 FROM FlowDefinitionView 
                 WHERE ProcessType = 'Workflow'
@@ -226,22 +239,34 @@ public without sharing class  AutomationsManagerController {
 
             List<FlowWrapper> wrappers = new List<FlowWrapper>();
             for(FlowDefinitionView flow : flows){
-                final String status = flow.Versions[0].Status;
-                final String processObjectName = flow.Versions[0]?.Variables[0]?.ObjectType;
-                if(processObjectName == null){
+                flow.Versions.sort();
+                Integer latestVersion;
+                for(Integer i=0; i<flow.Versions.size(); i++){
+                    String status = flow.Versions[i].Status;
+                    System.debug(status);
+                    if(status == 'Active' || status == 'Obsolete'){
+                        latestVersion = flow.Versions.size() - i;
+                        break;
+                    }
+                }
+
+                if(latestVersion == null){
                     continue;
                 }
-                if(!containsValueFromList(status, objectName) 
-                    || containsValueFromList(processObjectName, 'Draft,InvalidDraft')){
+
+                final String processObjectName = flow.Versions[latestVersion - 1].Variables[0].ObjectType;
+                if(!containsValueFromList(processObjectName, objectName)){
                     continue;
                 }
+
                 FlowWrapper wrapper = new FlowWrapper();
                 wrapper.isActive = flow.IsActive;
                 wrapper.id = flow.Id;
                 wrapper.flowDefinitionId = flow.DurableId;
                 wrapper.activeVersionId = flow.ActiveVersionId;
                 wrapper.name = flow.Label;
-                wrapper.latestVersion = flow.VersionNumber;
+                wrapper.latestVersion = latestVersion;
+                //wrapper.latestVersion = flow.VersionNumber;
                 wrapper.relatedObject = processObjectName;
                 wrappers.add(wrapper);
             }
